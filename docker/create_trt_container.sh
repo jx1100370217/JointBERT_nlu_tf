@@ -1,0 +1,1 @@
+docker run --gpus all -d -p 10086:22 -p 10087:8888 -v /data/aigroup:/root/aigroup -v /data/jx:/root/jx -v /data/kxy:/root/kxy -v /home/ylsup/nfs_mount_folder:/root/nfs -v /etc/localtime:/etc/localtime --name jx_trt -e ROOT_PASS="yl123456" jack:tensorrt-7.2.2.3

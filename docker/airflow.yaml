@@ -1,0 +1,155 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# Basic Airflow cluster configuration for CeleryExecutor with Redis and PostgreSQL.
+#
+# WARNING: This configuration is for local development. Do not use it in a production deployment.
+#
+# This configuration supports basic configuration using environment variables or an .env file
+# The following variables are supported:
+#
+# AIRFLOW_IMAGE_NAME         - Docker image name used to run Airflow.
+#                              Default: apache/airflow:2.0.2-python3.8
+# AIRFLOW_UID                - User ID in Airflow containers
+#                              Default: 5000
+# AIRFLOW_GID                - Group ID in Airflow containers
+#                              Default: 5000
+# _AIRFLOW_WWW_USER_USERNAME - Username for the administrator account.
+#                              Default: aigroup
+# _AIRFLOW_WWW_USER_PASSWORD - Password for the administrator account.
+#                              Default: sl123456
+#
+# Feel free to modify this file to suit your needs.
+
+version: '2.2'
+x-airflow-common: &airflow-common
+#  build:
+#    context: .
+#    dockerfile: airflow.Dockerfile
+#    args:
+#      AIRFLOW_VERSION: 2.0.2
+#      PYTHON_VERSION: 3.8
+  image: rivia/airflow:2.0.2
+  environment:
+    &airflow-common-env
+    AIRFLOW_HOME: /opt/airflow
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: system
+    AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: system
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://aigroup:sl123456@postgres:5432/aigroup
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://aigroup:sl123456@postgres:5432/aigroup
+    AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
+    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+  volumes:
+    - /etc/localtime:/etc/localtime
+    - /data/nlp/jx/airflow/dags:/opt/airflow/dags
+    - /data/nlp/jx/airflow/logs:/opt/airflow/logs
+    - /data/nlp/jx/airflow/plugins:/opt/airflow/plugins
+  user: root
+  depends_on:
+    redis:
+      condition: service_healthy
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: aigroup
+      POSTGRES_PASSWORD: sl123456
+      POSTGRES_DB: aigroup
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - /data/nlp/jx/pgdata:/var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "aigroup"]
+      interval: 5s
+      retries: 5
+    restart: always
+    container_name: airflow_postgres
+
+  redis:
+    image: redis:6.2
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 30s
+      retries: 50
+    restart: always
+    container_name: airflow_redis
+
+  webserver:
+    <<: *airflow-common
+    command: bash -c "airflow webserver"
+    ports:
+      - 8087:8080
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: always
+    container_name: airflow_webserver
+
+  scheduler:
+    <<: *airflow-common
+    depends_on:
+      webserver:
+        condition: service_healthy
+    command: bash -c "airflow scheduler"
+    restart: always
+    container_name: airflow_scheduler
+
+  worker:
+    <<: *airflow-common
+    depends_on:
+      - scheduler
+    command: bash -c "airflow celery worker"
+    restart: always
+    container_name: airflow_worker
+
+  flower:
+    <<: *airflow-common
+    command: bash -c "airflow celery flower"
+    ports:
+      - 5555:5555
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: always
+    container_name: airflow_flower
+
+  init:
+    <<: *airflow-common
+    tty: true
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_UPGRADE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-aigroup}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-sl123456}
+    container_name: airflow_init
+
+volumes:
+  postgres-db-volume:

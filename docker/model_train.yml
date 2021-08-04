@@ -1,0 +1,58 @@
+version: "3.7"
+
+services:
+  aigroup:
+    image: aigroup:ngc-tensorflow-20.12
+    restart: always
+    hostname: aigroup
+    ports:
+      - "8888:8888"
+      - "1234:22"
+      - "6008:6006"
+    volumes:
+      - "/data/aigroup:/root/aigroup"
+      - "/data/kxy:/root/kxy"
+      - "/data/jx:/root/jx"
+      - "/home/ylsup/nfs_mount_folder:/root/nfs"
+      - "/etc/localtime:/etc/localtime"
+    environment:
+      ROOT_PASS: "yl123456"
+      NOTEBOOK_PASS: "yl123456"
+      NOTEBOOK_USER: "aigroup"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [ gpu ]
+              count: all
+    container_name: aigroup
+
+  triton_server:
+    image: aigroup:triton-20.11
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    shm_size: "10gb"
+    restart: always
+    hostname: triton_server
+    ports:
+      - "12345:22"
+      - "18000:8000"
+      - "18001:8001"
+      - "18002:8002"
+    volumes:
+      - "/data/aigroup:/root/aigroup"
+      - "/data/kxy:/root/kxy"
+      - "/data/jx:/root/jx"
+      - "/home/ylsup/nfs_mount_folder:/root/nfs"
+      - "/etc/localtime:/etc/localtime"
+    environment:
+      ROOT_PASS: "yl123456"
+      NVIDIA_VISIBLE_DEVICES: "all"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [ gpu ]
+              count: all
+    container_name: triton_server

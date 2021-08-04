@@ -1,0 +1,1 @@
+docker run --gpus all --cpus 16 --memory 500gb --shm-size 512m -d -p 0.0.0.0:6008:6006 -p 9528:8888 -p 1258:22 -v /data/nlp/jx:/root/jx -v /etc/localtime:/etc/localtime --name jx_ngc_tf -e ROOT_PASS="yl123456" -e NOTEBOOK_PASS="yl123456" -e NOTEBOOK_USER="jx" rivia/tensorflow-1:ngc-21.06

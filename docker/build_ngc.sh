@@ -1,0 +1,1 @@
+docker build -t jack:ngc-tensorflow-20.12 -f ngc.Dockerfile .

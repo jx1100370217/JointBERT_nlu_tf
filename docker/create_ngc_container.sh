@@ -1,0 +1,1 @@
+docker run --gpus all --cpus 48 --memory 500gb -d -p 0.0.0.0:6007:6006 -p 9527:8888 -p 1257:22 -v /home/ylsup/nfs_mount_folder/bert_model_file:/root/nfs/bert_model_file -v /data/aigroup:/root/aigroup -v /data/jx:/root/jx -v /etc/localtime:/etc/localtime --name jx_ngc -e ROOT_PASS="yl123456" -e NOTEBOOK_PASS="yl123456" -e NOTEBOOK_USER="jx" jack:ngc-tensorflow-20.12

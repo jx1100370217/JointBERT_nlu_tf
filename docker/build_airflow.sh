@@ -1,0 +1,1 @@
+docker build -t jack:1.0.0-airflow -f airflow.Dockerfile .
